@@ -46,12 +46,28 @@ static SDL_version linked;
 
 #ifdef __PSP2__
 #include <vita2d.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/io/stat.h>
+#include <psp2/kernel/threadmgr.h>
 #include "psp2_kbdvita.h"
 
 // Video path selector written from scratch for the vitaGL port:
 // 0 = legacy software blit through vita2d P8 textures (launcher),
 // 1 = hardware GL present through SDL2 + vitaGL (in-game Polymost).
 static int vita_gl_active = 0;
+
+// Minimal append-logger for on-device diagnostics (written from scratch).
+// The device has no visible stdout, so every video step lands in
+// ux0:data/EDuke32/vitagl.log for the black-screen triage.
+static SceUID vita_log_fd = -1;
+static void vita_log(const char *msg)
+{
+    if (vita_log_fd < 0)
+        vita_log_fd = sceIoOpen("ux0:data/EDuke32/vitagl.log",
+                                SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
+    if (vita_log_fd >= 0 && msg)
+        sceIoWrite(vita_log_fd, msg, strlen(msg));
+}
 
 int _newlib_heap_size_user = 300 * 1024 * 1024;
 
@@ -641,9 +657,11 @@ int psp2_main(unsigned int argc, void *argv) {
 			cmd_argv[cmd_argc++] = ptr = space + 1;
 		}
 		vita2d_fini();
+		vita_log("vita: launcher done, entering app_main (custom args)\n");
 		return app_main(cmd_argc, (const char **)cmd_argv);
 	} else {
 		vita2d_fini();
+		vita_log("vita: launcher done, entering app_main (GRP select)\n");
 		return app_main(3, (const char **)int_argv);
 	}
 }
@@ -1782,6 +1800,25 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
 
 #if defined HAVE_VITAGL && defined __PSP2__
             vita_gl_active = 1;
+            vita_log("vita: GL context created\n");
+            SDL_GL_MakeCurrent(sdl_window, sdl_context);
+            {
+                char glinfobuf[512];
+                const char *v = (const char *)glGetString(GL_VERSION);
+                const char *r = (const char *)glGetString(GL_RENDERER);
+                snprintf(glinfobuf, sizeof(glinfobuf), "vita: GL version=[%s] renderer=[%s]\n",
+                         v ? v : "(null)", r ? r : "(null)");
+                vita_log(glinfobuf);
+            }
+            // Smoke test: solid red must be visible if swap path works.
+            // Black screen during this flash => context/swap broken, not Polymost.
+            glViewport(0, 0, x, y);
+            glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            SDL_GL_SwapWindow(sdl_window);
+            vita_log("vita: red smoke frame swapped\n");
+            sceKernelDelayThread(700 * 1000);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 #else
             gladLoadGLLoader(SDL_GL_GetProcAddress);
             if (GLVersion.major < 2)
@@ -1903,6 +1940,10 @@ void videoShowFrame(int32_t w)
 #ifdef USE_OPENGL
     if (vita_gl_active && sdl_window)
     {
+        static int vita_frame_count = 0;
+        if (vita_frame_count == 0)
+            vita_log("vita: first GL showframe\n");
+        vita_frame_count++;
         SDL_GL_SwapWindow(sdl_window);
         return;
     }
