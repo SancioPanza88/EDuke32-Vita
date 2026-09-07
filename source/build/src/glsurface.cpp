@@ -98,13 +98,9 @@ bool glsurface_initialize(vec2_t bufferResolution)
 #endif
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-#if defined HAVE_VITAGL && defined __PSP2__
-    // GL_RED e' GL3/GLES3, su vitaGL (GLES2) non esiste: LUMINANCE ha lo
-    // stesso comportamento per il nostro shader (campiona .r).
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, bufferRes.x, bufferRes.y, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
-#else
+    // GL_RED verificato supportato da vitaGL (textures.c: fast_store path),
+    // come da upstream. Niente LUMINANCE: restiamo identici al desktop.
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, bufferRes.x, bufferRes.y, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
-#endif
 
     glsurface_setPalette(curpalettefaded);
 
@@ -280,11 +276,7 @@ void glsurface_blitBuffer()
         return;
 
     glActiveTexture(GL_TEXTURE0);
-#if defined HAVE_VITAGL && defined __PSP2__
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bufferRes.x, bufferRes.y, GL_LUMINANCE, GL_UNSIGNED_BYTE, (void*) buffer);
-#else
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bufferRes.x, bufferRes.y, GL_RED, GL_UNSIGNED_BYTE, (void*) buffer);
-#endif
 
     glDrawArrays(GL_TRIANGLE_STRIP,
                  0,

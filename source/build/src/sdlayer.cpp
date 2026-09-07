@@ -51,17 +51,21 @@ static SDL_version linked;
 #include <psp2/kernel/threadmgr.h>
 #include "psp2_kbdvita.h"
 #if defined HAVE_VITAGL && defined __PSP2__
-// vitaGL deve essere inizializzato prima di SDL_CreateWindow/OpenGL.
-// Senza vglInitExtended il context SDL_GL esiste ma tutte le gl* sono no-op:
-// schermo nero, e lo swap non presenta mai nulla.
+// NOTA toolchain (verificata su repo ufficiali): la SDL2 di vdpm e' upstream
+// 2.32.x compilata SENZA backend GL (VIDEO_VITA_PIB/PVR default OFF), quindi
+// SDL_GL_CreateContext fallisce SEMPRE e SDL_GL_SwapWindow non presenta nulla.
+// vitaGL va guidato DIRETTAMENTE: vglInitExtended + chiamate GL linkate a
+// -lvitaGL + vglSwapBuffers. Niente SDL_WINDOW_OPENGL / SDL_GL_* in-game.
+// (Con la SDL2_vitagl di Northfear sarebbe l'opposto, ma non e' quella di vdpm.)
 #include <vitaGL.h>
+#include <psp2/kernel/sysmem.h>
 #endif
 
 // Video path GPU-only per la versione vitaGL:
-// il launcher usa vita2d, il gioco usa SOLO SDL2 + vitaGL (Polymost e
-// classic presentato via glsurface). Nessun fallback vita2d in-game:
-// dopo vita2d_fini() le texture fb/gpu non esistono piu' e riusarle
-// freeza la console (use-after-free -> hard reboot).
+// il launcher usa vita2d, il gioco usa SOLO vitaGL diretto (Polymost e
+// classic presentato via glsurface) con window SDL semplice per input/eventi.
+// Nessun fallback vita2d in-game: dopo vita2d_fini() le texture fb/gpu non
+// esistono piu' e riusarle freeza la console (use-after-free -> hard reboot).
 static int vita_gl_active = 0;
 static int vita_vgl_inited = 0;
 static int vita_vita2d_dead = 0;
@@ -1824,7 +1828,13 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
 #ifdef USE_OPENGL
     if (c > 8 || !nogl)
     {
+#if defined HAVE_VITAGL && defined __PSP2__
+        // Su questa toolchain (vdpm SDL2 = upstream senza backend GL) le
+        // SDL_GL_* non esistono: vitaGL diretto, window SDL semplice.
+        // 'i', 'j' e gli attributi SDL_GL servono solo al path desktop.
+#else
         int32_t i, j;
+#endif
 #ifdef USE_GLEXT
         int32_t multisamplecheck = (glmultisample > 0);
 #else
@@ -1833,26 +1843,15 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
         if (nogl)
             return -1;
 
+#if defined HAVE_VITAGL && defined __PSP2__
+        // Niente tabella attributi SDL_GL su Vita: la SDL di vdpm non ha
+        // backend GL, vitaGL si guida da solo (vedi sotto).
+#else
         struct glattribs
         {
             SDL_GLattr attr;
             int32_t value;
-        }
-#if defined HAVE_VITAGL && defined __PSP2__
-        // Attributi sicuri per vitaGL/SDL2-Vita:
-        // - niente multisample via SDL (l'MSAA vitaGL si configura in vglInit,
-        //   chiederlo qui fa fallire il context o inchioda GXM),
-        // - niente ACCELERATED_VISUAL (token desktop, senza senso su Vita),
-        // - depth 16 + stencil 8: Polymost vuole entrambi, 1-bit di stencil
-        //   non e' un formato GXM valido.
-        sdlayer_gl_attributes[] =
-        {
-              { SDL_GL_DOUBLEBUFFER, 1 },
-              { SDL_GL_DEPTH_SIZE, 16 },
-              { SDL_GL_STENCIL_SIZE, 8 },
-        };
-#else
-        sdlayer_gl_attributes[] =
+        } sdlayer_gl_attributes[] =
         {
 #ifdef EDUKE32_GLES
               { SDL_GL_CONTEXT_MAJOR_VERSION, 1 },
@@ -1870,21 +1869,79 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
 
         do
         {
+#if defined HAVE_VITAGL && defined __PSP2__
+            // vitaGL DIRETTO (vedi nota in testa al file): niente
+            // SDL_WINDOW_OPENGL / SDL_GL_CreateContext / SDL_GL_*.
+            // La window SDL serve solo per input ed eventi, GXM e' di vitaGL.
+            if (!vita_vgl_inited)
+            {
+                // Threshold = RAM lasciata al GIOCO: vitaGL prealloca tutto
+                // il resto per i suoi pool. Duke3D + heap stanno sotto i
+                // ~160MB: tarare guardando "free RAM at vglInit" nel log.
+                SceKernelFreeMemorySizeInfo meminfo;
+                meminfo.size = sizeof(meminfo);
+                sceKernelGetFreeMemorySize(&meminfo);
+                {
+                    char membuf[128];
+                    snprintf(membuf, sizeof(membuf),
+                             "vita: free RAM at vglInit: user=%dKB cdram=%dKB\n",
+                             (int)(meminfo.size_user / 1024),
+                             (int)(meminfo.size_cdram / 1024));
+                    vita_log(membuf);
+                }
+                GLboolean vgl_ok = vglInitExtended(0, 960, 544,
+                    160 * 1024 * 1024, SCE_GXM_MULTISAMPLE_NONE);
+                vita_vgl_inited = 1;
+                vita_log(vgl_ok ? "vita: vglInitExtended done\n" : "vita: vglInitExtended FAILED\n");
+            }
+            sdl_window = SDL_CreateWindow("", windowpos ? windowx : (int)SDL_WINDOWPOS_CENTERED,
+                                          windowpos ? windowy : (int)SDL_WINDOWPOS_CENTERED, x, y,
+                                          0);
+
+            if (!sdl_window)
+            {
+                initprintf("Unable to set video mode: SDL_CreateWindow failed: %s\n", SDL_GetError());
+                destroy_window_resources();
+                return -1;
+            }
+
+            vita_gl_active = 1;
+            xres = x; yres = y; bpp = c;
+            vita_log("vita: vitaGL video mode set\n");
+            {
+                char glinfobuf[512];
+                const char *v = (const char *)glGetString(GL_VERSION);
+                const char *r = (const char *)glGetString(GL_RENDERER);
+                snprintf(glinfobuf, sizeof(glinfobuf), "vita: GL version=[%s] renderer=[%s]\n",
+                         v ? v : "(null)", r ? r : "(null)");
+                vita_log(glinfobuf);
+            }
+            // Primo present: flash rosso breve SOLO alla prima init (prova
+            // visibile che lo swap vitaGL funziona), poi clear neri.
+            // Niente delay lunghi: 250ms una tantum, non sembra un freeze.
+            glViewport(0, 0, x, y);
+            {
+                static int vita_first_present = 1;
+                if (vita_first_present)
+                {
+                    vita_first_present = 0;
+                    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+                    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+                    vglSwapBuffers(GL_TRUE);
+                    vita_log("vita: red smoke frame swapped\n");
+                    sceKernelDelayThread(250 * 1000);
+                }
+                glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+                vglSwapBuffers(GL_TRUE);
+            }
+            vita_log("vita: first GL clear swapped\n");
+#else
             SDL_GL_ATTRIBUTES(i, sdlayer_gl_attributes);
 
             /* HACK: changing SDL GL attribs only works before surface creation,
                so we have to create a new surface in a different format first
                to force the surface we WANT to be recreated instead of reused. */
-#if defined HAVE_VITAGL && defined __PSP2__
-            // vitaGL va inizializzato UNA volta prima di creare window/context.
-            // Senza, SDL_GL_CreateContext riesce ma le gl* sono no-op -> nero.
-            if (!vita_vgl_inited)
-            {
-                GLboolean vgl_ok = vglInitExtended(0, 960, 544, 16 * 1024 * 1024, SCE_GXM_MULTISAMPLE_NONE);
-                vita_vgl_inited = 1;
-                vita_log(vgl_ok ? "vita: vglInitExtended done\n" : "vita: vglInitExtended FAILED\n");
-            }
-#endif
             sdl_window = SDL_CreateWindow("", windowpos ? windowx : (int)SDL_WINDOWPOS_CENTERED,
                                           windowpos ? windowy : (int)SDL_WINDOWPOS_CENTERED, x, y,
                                           SDL_WINDOW_OPENGL);
@@ -1899,28 +1956,7 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
                 return -1;
             }
 
-#if defined HAVE_VITAGL && defined __PSP2__
-            vita_gl_active = 1;
-            xres = x; yres = y; bpp = c;
-            vita_log("vita: GL context created\n");
-            SDL_GL_MakeCurrent(sdl_window, sdl_context);
-            {
-                char glinfobuf[512];
-                const char *v = (const char *)glGetString(GL_VERSION);
-                const char *r = (const char *)glGetString(GL_RENDERER);
-                snprintf(glinfobuf, sizeof(glinfobuf), "vita: GL version=[%s] renderer=[%s]\n",
-                         v ? v : "(null)", r ? r : "(null)");
-                vita_log(glinfobuf);
-            }
-            // Presenta un frame nero pulito: niente flash rosso + delay da
-            // 700ms sul thread video (sembra un freeze) e niente clear
-            // lasciato a meta'. Il primo frame vero arriva da ShowFrame.
-            glViewport(0, 0, x, y);
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            SDL_GL_SwapWindow(sdl_window);
-            vita_log("vita: first GL clear swapped\n");
-#else
+            // Solo desktop: su Vita niente glad/SDL_GL (vitaGL diretto).
             gladLoadGLLoader(SDL_GL_GetProcAddress);
             if (GLVersion.major < 2)
             {
@@ -1931,12 +1967,12 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
             }
 #endif
 #if defined HAVE_VITAGL && defined __PSP2__
-            // Su Vita la window e' gia' fullscreen nativa 960x544:
-            // SDL_SetWindowFullscreen qui distrugge e ricrea la window e
-            // invalida il GL context appena creato -> nero permanente.
-            // Anche SetSwapInterval/setrefreshrate non sono supportati dal
-            // backend Vita (vsync = vblank GXM, gestito da vitaGL/swap).
+            // Display Vita = sempre fullscreen 960x544, il driver SDL non ha
+            // handler fullscreen/swapinterval: niente da fare qui (e niente
+            // SDL_GL, vedi sopra). setrefreshrate() usa solo SDL display API
+            // sicure e serve per currentVBlankInterval (timing frame).
             (void)fs;
+            setrefreshrate();
 #else
             SDL_SetWindowFullscreen(sdl_window, ((fs & 1) ? SDL_WINDOW_FULLSCREEN : 0));
             SDL_GL_SetSwapInterval(vsync_renderlayer);
@@ -1945,6 +1981,7 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
 #endif
 #if defined HAVE_VITAGL && defined __PSP2__
         } while (0);
+        (void)multisamplecheck; // single-pass su Vita: niente retry MSAA via SDL
 #else
         } while (multisamplecheck--);
 #endif
@@ -2091,7 +2128,9 @@ void videoShowFrame(int32_t w)
     if (offscreenrendering) return;
 
 #if defined USE_OPENGL && defined HAVE_VITAGL && defined __PSP2__
-    if (vita_gl_active && sdl_window)
+    // Presentazione DIRETTA vitaGL: SDL_GL_SwapWindow non esiste in questa
+    // toolchain (SDL vdpm senza backend GL) e non presenterebbe mai nulla.
+    if (vita_gl_active)
     {
         static int vita_frame_count = 0;
         if (vita_frame_count == 0)
@@ -2105,7 +2144,9 @@ void videoShowFrame(int32_t w)
             // In Polymost (bpp>8) il motore ha gia' disegnato via GL.
             glsurface_blitBuffer();
         }
-        SDL_GL_SwapWindow(sdl_window);
+        // GL_TRUE = supporto common dialog (IME/tastiera) sopra il GL,
+        // come fa il driver SDL2_vitagl di Northfear.
+        vglSwapBuffers(GL_TRUE);
         return;
     }
 #endif
