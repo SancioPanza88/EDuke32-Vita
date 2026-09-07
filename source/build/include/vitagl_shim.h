@@ -60,6 +60,7 @@ static inline GLsync vita_shim_FenceSync(GLenum c, unsigned int f) { (void)c; (v
 static inline GLenum vita_shim_ClientWaitSync(GLsync s, unsigned int f, unsigned long long t) { (void)s; (void)f; (void)t; return (GLenum)GL_ALREADY_SIGNALED; }
 static inline void vita_shim_DeleteSync(GLsync s) { (void)s; }
 static inline void vita_shim_WaitSync(GLsync s, unsigned int f, unsigned long long t) { (void)s; (void)f; (void)t; }
+static inline void vita_shim_DetachShader(unsigned int p, unsigned int s) { (void)p; (void)s; }
 #ifdef __cplusplus
 }
 #endif
@@ -67,6 +68,7 @@ static inline void vita_shim_WaitSync(GLsync s, unsigned int f, unsigned long lo
 #define glClientWaitSync vita_shim_ClientWaitSync
 #define glDeleteSync vita_shim_DeleteSync
 #define glWaitSync vita_shim_WaitSync
+#define glDetachShader vita_shim_DetachShader
 #define glBufferStorage(t, s, d, f) glBufferData(t, s, d, GL_STREAM_DRAW)
 #else
 #include "glad/glad.h"
