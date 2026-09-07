@@ -10,7 +10,7 @@ Ken Silverman's official web site: http://www.advsys.net/ken
 
 #include "compat.h"
 #include "build.h"
-#include "glad/glad.h"
+#include "vitagl_shim.h"
 #include "mdsprite.h"
 #include "pragmas.h"
 #include "baselayer.h"

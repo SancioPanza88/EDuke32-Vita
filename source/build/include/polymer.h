@@ -5,7 +5,7 @@
 
 # include "compat.h"
 # include "baselayer.h"
-# include "glad/glad.h"
+# include "vitagl_shim.h"
 # include "build.h"
 # include "glbuild.h"
 # include "osd.h"

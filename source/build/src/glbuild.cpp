@@ -1,5 +1,5 @@
 #include "compat.h"
-#include "glad/glad.h"
+#include "vitagl_shim.h"
 #include "glbuild.h"
 #include "baselayer.h"
 

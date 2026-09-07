@@ -15,11 +15,7 @@
 
 #include "softsurface.h"
 #ifdef USE_OPENGL
-# if defined HAVE_VITAGL && defined __PSP2__
-#  include <vitaGL.h>
-# else
-#  include "glad/glad.h"
-# endif
+# include "vitagl_shim.h"
 # include "glbuild.h"
 # include "glsurface.h"
 #endif

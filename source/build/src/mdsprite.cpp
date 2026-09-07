@@ -4,7 +4,7 @@
 
 #include "compat.h"
 #include "build.h"
-#include "glad/glad.h"
+#include "vitagl_shim.h"
 #include "pragmas.h"
 #include "baselayer.h"
 #include "engine_priv.h"

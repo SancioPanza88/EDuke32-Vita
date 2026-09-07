@@ -20,7 +20,7 @@
 
 #include "compat.h"
 #include "pragmas.h"
-#include "glad/glad.h"
+#include "vitagl_shim.h"
 #include "glbuild.h"
 #include "palette.h"
 #include "collections.h"
