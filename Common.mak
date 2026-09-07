@@ -570,7 +570,7 @@ else ifeq ($(PLATFORM),WII)
 else ifeq ($(PLATFORM),PSP2)
     COMMONFLAGS += -mfpu=neon -mcpu=cortex-a9 -g -ffast-math
     COMPILERFLAGS += -D__PSP2__ -DWANT_FMMIDI=1 -DUSE_AUDIO_RESAMPLER -DHAVE_LIBSPEEXDSP -DHAVE_VITAGL
-    LINKERFLAGS += -Wl,-q
+    LINKERFLAGS += -Wl,-q -Wl,--allow-multiple-definition
 else ifeq ($(PLATFORM),$(filter $(PLATFORM),DINGOO GCW))
     COMPILERFLAGS += -D__OPENDINGUX__
 else ifeq ($(PLATFORM),SKYOS)
