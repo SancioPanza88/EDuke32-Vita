@@ -389,13 +389,14 @@ else ifeq ($(PLATFORM),WII)
     override HAVE_FLAC := 0
     SDL_TARGET := 1
 else ifeq ($(PLATFORM),PSP2)
-    override USE_OPENGL := 0
+    override USE_OPENGL := 1
     override NETCODE := 0
     override HAVE_GTK2 := 0
     override NOASM := 1
     override USE_LIBVPX := 0
     override HAVE_FLAC := 0
-    SDL_TARGET := 1
+    override POLYMER := 0
+    SDL_TARGET := 2
 else ifeq ($(PLATFORM),$(filter $(PLATFORM),DINGOO GCW QNX SUNOS SYLLABLE))
     override USE_OPENGL := 0
     override NOASM := 1
@@ -568,7 +569,7 @@ else ifeq ($(PLATFORM),WII)
     LIBDIRS += -L$(LIBOGC_LIB)
 else ifeq ($(PLATFORM),PSP2)
     COMMONFLAGS += -mfpu=neon -mcpu=cortex-a9 -g -ffast-math
-    COMPILERFLAGS += -D__PSP2__ -DWANT_FMMIDI=1 -DUSE_AUDIO_RESAMPLER -DHAVE_LIBSPEEXDSP
+    COMPILERFLAGS += -D__PSP2__ -DWANT_FMMIDI=1 -DUSE_AUDIO_RESAMPLER -DHAVE_LIBSPEEXDSP -DHAVE_VITAGL
     LINKERFLAGS += -Wl,-q
 else ifeq ($(PLATFORM),$(filter $(PLATFORM),DINGOO GCW))
     COMPILERFLAGS += -D__OPENDINGUX__
