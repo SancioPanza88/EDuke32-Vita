@@ -48,8 +48,8 @@ static void drawpixel_safe(void *s, char a)
 //
 void plotpixel(int32_t x, int32_t y, char col)
 {
-    // XXX: if we ever want the editor to work under GL ES, find a replacement for the raster functions
-#if defined USE_OPENGL && !defined EDUKE32_GLES
+    // vitaGL has no legacy raster calls, use the software fallback there.
+#if defined USE_OPENGL && !defined EDUKE32_GLES && !(defined HAVE_VITAGL && defined __PSP2__)
     if (videoGetRenderMode() >= REND_POLYMOST && in3dmode())
     {
         palette_t p = paletteGetColor(col);
