@@ -843,6 +843,9 @@ void polymost_glinit()
     //POGOTODO: require a max texture size >= 2048
 
     persistentStreamBuffer = r_persistentStreamBuffer;
+#if defined HAVE_VITAGL && defined __PSP2__
+    persistentStreamBuffer = 0;
+#endif
     drawpolyVertsBufferLength = r_drawpolyVertsBufferLength;
 
     drawpolyVertsOffset = 0;

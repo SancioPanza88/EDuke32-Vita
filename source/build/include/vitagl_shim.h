@@ -23,6 +23,18 @@
 #ifndef GL_RGBA8
 #define GL_RGBA8 GL_RGBA
 #endif
+#ifndef GL_FOG_HINT
+#define GL_FOG_HINT 0x0C54
+#endif
+#ifndef GL_COMPRESSED_RGBA
+#define GL_COMPRESSED_RGBA GL_RGBA
+#endif
+#ifndef GL_MAP_PERSISTENT_BIT
+#define GL_MAP_PERSISTENT_BIT 0x0040
+#endif
+#ifndef GL_MAP_COHERENT_BIT
+#define GL_MAP_COHERENT_BIT 0x0080
+#endif
 #ifndef GL_SYNC_GPU_COMMANDS_COMPLETE
 #define GL_SYNC_GPU_COMMANDS_COMPLETE 0x9117
 #endif
@@ -55,6 +67,7 @@ static inline void vita_shim_WaitSync(GLsync s, unsigned int f, unsigned long lo
 #define glClientWaitSync vita_shim_ClientWaitSync
 #define glDeleteSync vita_shim_DeleteSync
 #define glWaitSync vita_shim_WaitSync
+#define glBufferStorage(t, s, d, f) glBufferData(t, s, d, GL_STREAM_DRAW)
 #else
 #include "glad/glad.h"
 #endif
