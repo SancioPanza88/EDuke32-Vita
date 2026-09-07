@@ -26,6 +26,9 @@
 #ifndef GL_FOG_HINT
 #define GL_FOG_HINT 0x0C54
 #endif
+#ifndef GL_DITHER
+#define GL_DITHER 0x0BD0
+#endif
 #ifndef GL_COMPRESSED_RGBA
 #define GL_COMPRESSED_RGBA GL_RGBA
 #endif
