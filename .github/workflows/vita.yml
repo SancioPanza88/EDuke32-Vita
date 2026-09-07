@@ -36,6 +36,9 @@ jobs:
           vdpm speexdsp || true
           vdpm libpng || true
           vdpm libjpeg || true
+          vdpm libmodplug || true
+          vdpm opusfile || true
+          vdpm libxmp || true
 
       - name: Build VPK
         run: |

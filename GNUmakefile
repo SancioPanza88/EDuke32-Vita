@@ -262,7 +262,7 @@ ifeq ($(PLATFORM),PSP2)
             -lSceCommonDialog_stub -lSceDisplay_stub -lSceGxm_stub -lSceHid_stub -lSceAudio_stub -lSceLibKernel_stub -lpng \
     		-lz -lSceMotion_stub -lSceAppMgr_stub -lSceSysmodule_stub -lSceCtrl_stub \
     		-lSceTouch_stub -lm -lSceAppUtil_stub -lScePgf_stub -ljpeg \
-    		-lSceRtc_stub -lScePower_stub -lSDL2_mixer -lSDL2 -lmikmod -lspeexdsp \
+    		-lSceRtc_stub -lScePower_stub -lSceAudioIn_stub -lSDL2_mixer -lmodplug -lopusfile -lopus -lxmp -lSDL2 -lmikmod -lspeexdsp \
     		-ltaihen_stub -lSceKernelDmacMgr_stub -lvita2d
 endif
 ifeq ($(RENDERTYPE),SDL)
