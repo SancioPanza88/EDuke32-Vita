@@ -11,6 +11,50 @@
 #define glad_glActiveTexture glActiveTexture
 #define glad_glBindTexture glBindTexture
 #define gladLoadGLLoader(x) (1)
+
+// Desktop GL tokens missing from the device headers: define them so the
+// Polymost source compiles. Calls using them become harmless no-ops.
+#ifndef GL_TEXTURE_BASE_LEVEL
+#define GL_TEXTURE_BASE_LEVEL 0x813C
+#endif
+#ifndef GL_TEXTURE_MAX_LEVEL
+#define GL_TEXTURE_MAX_LEVEL 0x813D
+#endif
+#ifndef GL_RGBA8
+#define GL_RGBA8 GL_RGBA
+#endif
+#ifndef GL_SYNC_GPU_COMMANDS_COMPLETE
+#define GL_SYNC_GPU_COMMANDS_COMPLETE 0x9117
+#endif
+#ifndef GL_SYNC_FLUSH_COMMANDS_BIT
+#define GL_SYNC_FLUSH_COMMANDS_BIT 0x00000001
+#endif
+#ifndef GL_ALREADY_SIGNALED
+#define GL_ALREADY_SIGNALED 0x911A
+#endif
+#ifndef GL_CONDITION_SATISFIED
+#define GL_CONDITION_SATISFIED 0x911C
+#endif
+#ifndef GL_TIMEOUT_EXPIRED
+#define GL_TIMEOUT_EXPIRED 0x911B
+#endif
+#ifndef GL_WAIT_FAILED
+#define GL_WAIT_FAILED 0x911D
+#endif
+#ifdef __cplusplus
+extern "C" {
+#endif
+static inline GLsync vita_shim_FenceSync(GLenum c, unsigned int f) { (void)c; (void)f; return (GLsync)0; }
+static inline GLenum vita_shim_ClientWaitSync(GLsync s, unsigned int f, unsigned long long t) { (void)s; (void)f; (void)t; return (GLenum)GL_ALREADY_SIGNALED; }
+static inline void vita_shim_DeleteSync(GLsync s) { (void)s; }
+static inline void vita_shim_WaitSync(GLsync s, unsigned int f, unsigned long long t) { (void)s; (void)f; (void)t; }
+#ifdef __cplusplus
+}
+#endif
+#define glFenceSync vita_shim_FenceSync
+#define glClientWaitSync vita_shim_ClientWaitSync
+#define glDeleteSync vita_shim_DeleteSync
+#define glWaitSync vita_shim_WaitSync
 #else
 #include "glad/glad.h"
 #endif
