@@ -2487,6 +2487,7 @@ int32_t handleevents(void)
 }
 
 #ifdef __PSP2__
+#if SDL_MAJOR_VERSION == 1
 static void PSP2_CreateAndPushKeyEvent(SDLKey key_sym, Uint8 event_type) {
     SDL_Event event;
     event.type = event_type;
@@ -2495,6 +2496,17 @@ static void PSP2_CreateAndPushKeyEvent(SDLKey key_sym, Uint8 event_type) {
     event.key.keysym.mod = 0;
     SDL_PushEvent(&event);
 }
+#else
+static void PSP2_CreateAndPushKeyEvent(SDL_Keycode key_sym, Uint32 event_type) {
+    SDL_Event event;
+    SDL_memset(&event, 0, sizeof(event));
+    event.type = event_type;
+    event.key.keysym.sym = key_sym;
+    event.key.keysym.mod = 0;
+    event.key.state = (event_type == SDL_KEYDOWN) ? SDL_PRESSED : SDL_RELEASED;
+    SDL_PushEvent(&event);
+}
+#endif
 
 void PSP2_StartTextInput(char *initial_text) {
     if (!can_use_IME_keyboard)
@@ -2526,8 +2538,8 @@ void PSP2_StartTextInput(char *initial_text) {
             // convert lf to return
             if (text[i]==10)
                 text[i]=SDLK_RETURN;
-            PSP2_CreateAndPushKeyEvent((SDLKey) text[i], SDL_KEYDOWN);
-            PSP2_CreateAndPushKeyEvent((SDLKey) text[i], SDL_KEYUP);
+            PSP2_CreateAndPushKeyEvent((SDL_Keycode) text[i], SDL_KEYDOWN);
+            PSP2_CreateAndPushKeyEvent((SDL_Keycode) text[i], SDL_KEYUP);
             i++;
         }
     }
