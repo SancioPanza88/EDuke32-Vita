@@ -91,13 +91,63 @@ bool glsurface_initialize(vec2_t bufferResolution)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+#if defined HAVE_VITAGL && defined __PSP2__
+    // vitaGL e' GLES2-based: niente anisotropy ext qui (solo GL error).
+#else
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1);
+#endif
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+#if defined HAVE_VITAGL && defined __PSP2__
+    // GL_RED e' GL3/GLES3, su vitaGL (GLES2) non esiste: LUMINANCE ha lo
+    // stesso comportamento per il nostro shader (campiona .r).
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, bufferRes.x, bufferRes.y, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
+#else
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, bufferRes.x, bufferRes.y, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
+#endif
 
     glsurface_setPalette(curpalettefaded);
 
+#if defined HAVE_VITAGL && defined __PSP2__
+    // Senza "#version 110" (GLSL desktop): vitaShaRK compila come GLSL ES
+    // 1.00, dove attribute/varying/texture2D/gl_FragColor sono validi.
+    const char* const VERTEX_SHADER_CODE =
+        "\n\
+         attribute vec4 i_vertPos;\n\
+         attribute vec2 i_texCoord;\n\
+         \n\
+         varying vec2 v_texCoord;\n\
+         \n\
+         void main()\n\
+         {\n\
+             gl_Position = i_vertPos;\n\
+             v_texCoord = i_texCoord;\n\
+         }\n";
+    const char* const FRAGMENT_SHADER_CODE =
+        "\n\
+         //s_texture points to an indexed color texture\n\
+         uniform sampler2D s_texture;\n\
+         //s_palette is the palette texture\n\
+         uniform sampler2D s_palette;\n\
+         \n\
+         varying vec2 v_texCoord;\n\
+         \n\
+         const float c_paletteScale = 255.0/256.0;\n\
+         const float c_paletteOffset = 0.5/256.0;\n\
+         \n\
+         void main()\n\
+         {\n\
+             vec4 color = texture2D(s_texture, v_texCoord.xy);\n\
+             color.r = c_paletteOffset + c_paletteScale*color.r;\n\
+             color.rgb = texture2D(s_palette, color.rg).rgb;\n\
+             \n\
+             // DEBUG \n\
+             //color = texture2D(s_palette, v_texCoord.xy);\n\
+             //color = texture2D(s_texture, v_texCoord.xy);\n\
+             \n\
+             gl_FragColor = color;\n\
+         }\n";
+#else
     const char* const VERTEX_SHADER_CODE =
         "#version 110\n\
          \n\
@@ -136,6 +186,7 @@ bool glsurface_initialize(vec2_t bufferResolution)
              \n\
              gl_FragColor = color;\n\
          }\n";
+#endif
 
     shaderProgramID = glCreateProgram();
     GLuint vertexShaderID = compileShader(GL_VERTEX_SHADER, VERTEX_SHADER_CODE);
@@ -204,7 +255,9 @@ void glsurface_setPalette(void* pPalette)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+#if !defined HAVE_VITAGL || !defined __PSP2__
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1);
+#endif
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPalette);
@@ -227,7 +280,11 @@ void glsurface_blitBuffer()
         return;
 
     glActiveTexture(GL_TEXTURE0);
+#if defined HAVE_VITAGL && defined __PSP2__
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bufferRes.x, bufferRes.y, GL_LUMINANCE, GL_UNSIGNED_BYTE, (void*) buffer);
+#else
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bufferRes.x, bufferRes.y, GL_RED, GL_UNSIGNED_BYTE, (void*) buffer);
+#endif
 
     glDrawArrays(GL_TRIANGLE_STRIP,
                  0,

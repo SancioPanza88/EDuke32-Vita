@@ -6,6 +6,7 @@
 
 #ifdef USE_OPENGL
 #if defined HAVE_VITAGL && defined __PSP2__
+#include <psp2/gxm.h>
 #include <vitaGL.h>
 // Polymost calls a few glad_ entry points directly; map them to plain GL.
 #define glad_glActiveTexture glActiveTexture
