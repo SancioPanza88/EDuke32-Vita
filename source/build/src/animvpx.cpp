@@ -7,7 +7,7 @@
 #include "compat.h"
 #include "baselayer.h"
 #include "build.h"
-#include "glad/glad.h"
+#include "vitagl_shim.h"
 #include "cache1d.h"
 
 #undef UNUSED

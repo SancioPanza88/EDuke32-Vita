@@ -2,11 +2,11 @@
  * glsurface.cpp
  *  A 32-bit rendering surface that can quickly blit 8-bit paletted buffers implemented in OpenGL.
  *
- * Copyright © 2018, Alex Dawson. All rights reserved.
+ * Copyright ï¿½ 2018, Alex Dawson. All rights reserved.
  */
 
 #include "glsurface.h"
-#include "glad/glad.h"
+#include "vitagl_shim.h"
 
 #include "baselayer.h"
 #include "build.h"

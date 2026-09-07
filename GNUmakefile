@@ -258,11 +258,12 @@ endif
 ifeq ($(PLATFORM),PSP2)
     engine_cflags += -fpermissive
     engine_objs += psp2_kbdvita.cpp
-    LIBS += -lvorbisfile -lvorbis -logg -lmpg123 -lmikmod -lm -lz -lvita2d -lSceCommonDialog_stub \
-            -lSceDisplay_stub -lSceGxm_stub -lSceHid_stub -lSceAudio_stub -lSceLibKernel_stub -lpng \
-    		-lz -lSceDisplay_stub -lSceMotion_stub -lSceAppMgr_stub -lSceSysmodule_stub -lSceCtrl_stub \
-    		-lSceTouch_stub -lSceMotion_stub -lm -lSceAppMgr_stub -lSceAppUtil_stub -lScePgf_stub -ljpeg \
-    		-lSceRtc_stub -lScePower_stub -lSDL_mixer -lSDL -lmikmod -lspeexdsp
+    LIBS += -lvorbisfile -lvorbis -logg -lmpg123 -lmikmod -lm -lz -lvitaGL -lvitashark -lmathneon -lSceShaccCgExt -lSceShaccCg_stub \
+            -lSceCommonDialog_stub -lSceDisplay_stub -lSceGxm_stub -lSceHid_stub -lSceAudio_stub -lSceLibKernel_stub -lpng \
+    		-lz -lSceMotion_stub -lSceAppMgr_stub -lSceSysmodule_stub -lSceCtrl_stub \
+    		-lSceTouch_stub -lm -lSceAppUtil_stub -lScePgf_stub -ljpeg \
+    		-lSceRtc_stub -lScePower_stub -lSceAudioIn_stub -lSDL2_mixer -lmodplug -lopusfile -lopus -lxmp -lSDL2 -lmikmod -lspeexdsp \
+    		-ltaihen_stub -lSceKernelDmacMgr_stub -lvita2d
 endif
 ifeq ($(RENDERTYPE),SDL)
     engine_objs += sdlayer.cpp

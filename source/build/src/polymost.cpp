@@ -10,7 +10,7 @@ Ken Silverman's official web site: http://www.advsys.net/ken
 
 #include "compat.h"
 #include "build.h"
-#include "glad/glad.h"
+#include "vitagl_shim.h"
 #include "mdsprite.h"
 #include "pragmas.h"
 #include "baselayer.h"
@@ -843,6 +843,9 @@ void polymost_glinit()
     //POGOTODO: require a max texture size >= 2048
 
     persistentStreamBuffer = r_persistentStreamBuffer;
+#if defined HAVE_VITAGL && defined __PSP2__
+    persistentStreamBuffer = 0;
+#endif
     drawpolyVertsBufferLength = r_drawpolyVertsBufferLength;
 
     drawpolyVertsOffset = 0;

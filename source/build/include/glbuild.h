@@ -4,14 +4,20 @@
 
 #ifdef USE_OPENGL
 
-#if !defined GEKKO && !defined EDUKE32_GLES
+#if defined HAVE_VITAGL && defined __PSP2__
+# include <vitaGL.h>
+#endif
+
+#if !defined GEKKO && !defined EDUKE32_GLES && !defined HAVE_VITAGL
 # define DYNAMIC_GL
 # define DYNAMIC_GLU
 # define DYNAMIC_GLEXT
 # define USE_GLEXT
 #endif
 
-#if defined EDUKE32_OSX
+#if defined HAVE_VITAGL && defined __PSP2__
+/* vitaGL provides its own GL headers; no desktop GLU on Vita. */
+#elif defined EDUKE32_OSX
 # include <OpenGL/glu.h>
 #else
 # include <GL/glu.h>

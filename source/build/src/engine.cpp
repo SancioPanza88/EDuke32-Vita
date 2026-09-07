@@ -23,7 +23,7 @@
 
 #include "softsurface.h"
 #ifdef USE_OPENGL
-# include "glad/glad.h"
+# include "vitagl_shim.h"
 # include "glsurface.h"
 # include "mdsprite.h"
 # ifdef POLYMER

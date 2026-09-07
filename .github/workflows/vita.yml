@@ -1,0 +1,54 @@
+name: Vita vitaGL build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  vita:
+    runs-on: ubuntu-latest
+    container:
+      image: vitasdk/vitasdk:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System deps
+        run: |
+          apt-get update
+          apt-get install -y p7zip-full pkg-config subversion cmake python3
+
+      - name: Vita ports
+        run: |
+          export VITASDK=/usr/local/vitasdk
+          export PATH="$VITASDK/bin:$PATH"
+          vdpm vitaGL || true
+          vdpm vitaShaRK || true
+          vdpm mathneon || true
+          vdpm taihen || true
+          vdpm SDL2 || true
+          vdpm SDL2_mixer || true
+          vdpm libvorbis || true
+          vdpm mpg123 || true
+          vdpm libmikmod || true
+          vdpm speexdsp || true
+          vdpm libpng || true
+          vdpm libjpeg || true
+          vdpm libmodplug || true
+          vdpm opusfile || true
+          vdpm libxmp || true
+
+      - name: Build VPK
+        run: |
+          export VITASDK=/usr/local/vitasdk
+          export PATH="$VITASDK/bin:$PATH"
+          make -j$(nproc)
+
+      - name: Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EDuke32-vitagl
+          path: EDuke32.vpk
+          if-no-files-found: error

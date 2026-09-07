@@ -15,7 +15,7 @@
 
 #include "softsurface.h"
 #ifdef USE_OPENGL
-# include "glad/glad.h"
+# include "vitagl_shim.h"
 # include "glbuild.h"
 # include "glsurface.h"
 #endif
@@ -47,6 +47,11 @@ static SDL_version linked;
 #ifdef __PSP2__
 #include <vita2d.h>
 #include "psp2_kbdvita.h"
+
+// Video path selector written from scratch for the vitaGL port:
+// 0 = legacy software blit through vita2d P8 textures (launcher),
+// 1 = hardware GL present through SDL2 + vitaGL (in-game Polymost).
+static int vita_gl_active = 0;
 
 int _newlib_heap_size_user = 300 * 1024 * 1024;
 
@@ -96,7 +101,7 @@ static SDL_GLContext sdl_context=NULL;
 #endif
 
 #ifdef __PSP2__
-int32_t xres=960, yres=544, bpp=8, fullscreen=1, bytesperline = 960;
+int32_t xres=960, yres=544, bpp=32, fullscreen=1, bytesperline = 960;
 #else
 int32_t xres=-1, yres=-1, bpp=0, fullscreen=0, bytesperline;
 #endif
@@ -635,8 +640,10 @@ int psp2_main(unsigned int argc, void *argv) {
 			*space = 0;
 			cmd_argv[cmd_argc++] = ptr = space + 1;
 		}
+		vita2d_fini();
 		return app_main(cmd_argc, (const char **)cmd_argv);
 	} else {
+		vita2d_fini();
 		return app_main(3, (const char **)int_argv);
 	}
 }
@@ -861,7 +868,8 @@ void uninitsystem(void)
 {
     uninitinput();
     timerUninit();
-    vita2d_fini();
+    if (!vita_gl_active)
+        vita2d_fini();
 }
 
 
@@ -1772,6 +1780,9 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
                 return -1;
             }
 
+#if defined HAVE_VITAGL && defined __PSP2__
+            vita_gl_active = 1;
+#else
             gladLoadGLLoader(SDL_GL_GetProcAddress);
             if (GLVersion.major < 2)
             {
@@ -1780,7 +1791,7 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
                 destroy_window_resources();
                 return -1;
             }
-
+#endif
             SDL_SetWindowFullscreen(sdl_window, ((fs & 1) ? SDL_WINDOW_FULLSCREEN : 0));
             SDL_GL_SetSwapInterval(vsync_renderlayer);
 
@@ -1888,7 +1899,14 @@ void videoShowFrame(int32_t w)
     UNREFERENCED_PARAMETER(w);
 
     if (offscreenrendering) return;
-	
+
+#ifdef USE_OPENGL
+    if (vita_gl_active && sdl_window)
+    {
+        SDL_GL_SwapWindow(sdl_window);
+        return;
+    }
+#endif
     memcpy(vita2d_texture_get_datap(gpu_texture),vita2d_texture_get_datap(fb_texture),vita2d_texture_get_stride(gpu_texture)*vita2d_texture_get_height(gpu_texture));
     vita2d_start_drawing();
     vita2d_draw_texture(gpu_texture, 0, 0);
@@ -1904,6 +1922,10 @@ int32_t videoUpdatePalette(int32_t start, int32_t num)
 {
     UNREFERENCED_PARAMETER(start);
     UNREFERENCED_PARAMETER(num);
+#ifdef USE_OPENGL
+    if (vita_gl_active)
+        return 0;
+#endif
     uint8_t *pal = (uint8_t*)curpalettefaded;
     uint8_t r, g, b;
     uint32_t* palette_tbl = (uint32_t*)vita2d_texture_get_palette(fb_texture);
@@ -2465,6 +2487,7 @@ int32_t handleevents(void)
 }
 
 #ifdef __PSP2__
+#if SDL_MAJOR_VERSION == 1
 static void PSP2_CreateAndPushKeyEvent(SDLKey key_sym, Uint8 event_type) {
     SDL_Event event;
     event.type = event_type;
@@ -2473,6 +2496,17 @@ static void PSP2_CreateAndPushKeyEvent(SDLKey key_sym, Uint8 event_type) {
     event.key.keysym.mod = 0;
     SDL_PushEvent(&event);
 }
+#else
+static void PSP2_CreateAndPushKeyEvent(SDL_Keycode key_sym, Uint32 event_type) {
+    SDL_Event event;
+    SDL_memset(&event, 0, sizeof(event));
+    event.type = event_type;
+    event.key.keysym.sym = key_sym;
+    event.key.keysym.mod = 0;
+    event.key.state = (event_type == SDL_KEYDOWN) ? SDL_PRESSED : SDL_RELEASED;
+    SDL_PushEvent(&event);
+}
+#endif
 
 void PSP2_StartTextInput(char *initial_text) {
     if (!can_use_IME_keyboard)
@@ -2504,8 +2538,8 @@ void PSP2_StartTextInput(char *initial_text) {
             // convert lf to return
             if (text[i]==10)
                 text[i]=SDLK_RETURN;
-            PSP2_CreateAndPushKeyEvent((SDLKey) text[i], SDL_KEYDOWN);
-            PSP2_CreateAndPushKeyEvent((SDLKey) text[i], SDL_KEYUP);
+            PSP2_CreateAndPushKeyEvent((SDL_Keycode) text[i], SDL_KEYDOWN);
+            PSP2_CreateAndPushKeyEvent((SDL_Keycode) text[i], SDL_KEYUP);
             i++;
         }
     }
